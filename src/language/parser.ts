@@ -481,16 +481,18 @@ export class Parser {
   }
 
   parseRequiredModifierNode(): RequiredDesignatorNode | undefined {
+    const start = this._lexer.token;
     if (this.expectOptionalToken(TokenKind.BANG)) {
-      return this.node<RequiredDesignatorNode>(this._lexer.token, {
+      return this.node<RequiredDesignatorNode>(start, {
         kind: Kind.REQUIRED_DESIGNATOR,
       });
     }
   }
 
   parseOptionalModifierNode(): OptionalDesignatorNode | undefined {
+    const start = this._lexer.token;
     if (this.expectOptionalToken(TokenKind.QUESTION_MARK)) {
-      return this.node<OptionalDesignatorNode>(this._lexer.token, {
+      return this.node<OptionalDesignatorNode>(start, {
         kind: Kind.OPTIONAL_DESIGNATOR,
       });
     }

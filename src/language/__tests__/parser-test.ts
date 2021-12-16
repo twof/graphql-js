@@ -263,7 +263,7 @@ describe('Parser', () => {
                 selectionSet: undefined,
                 required: {
                   kind: Kind.REQUIRED_DESIGNATOR,
-                  loc: { start: 17, end: 16 },
+                  loc: { start: 15, end: 16 },
                 },
               },
             ],
