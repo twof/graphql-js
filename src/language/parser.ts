@@ -59,9 +59,9 @@ import type {
   UnionTypeExtensionNode,
   EnumTypeExtensionNode,
   InputObjectTypeExtensionNode,
-  NullabilityModifierNode,
-  OptionalModifierNode,
-  RequiredModifierNode,
+  NullabilityDesignatorNode,
+  OptionalDesignatorNode,
+  RequiredDesignatorNode,
 } from './ast';
 import { Kind } from './kinds';
 import { Location, OperationTypeNode } from './ast';
@@ -477,21 +477,21 @@ export class Parser {
    * - ?
    *
    */
-  parseRequiredStatus(): NullabilityModifierNode | undefined {
+  parseRequiredStatus(): NullabilityDesignatorNode | undefined {
     return this.parseRequiredModifierNode() ?? this.parseOptionalModifierNode();
   }
 
-  parseRequiredModifierNode(): RequiredModifierNode | undefined {
+  parseRequiredModifierNode(): RequiredDesignatorNode | undefined {
     if (this.expectOptionalToken(TokenKind.BANG)) {
-      return this.node<RequiredModifierNode>(this._lexer.token, {
+      return this.node<RequiredDesignatorNode>(this._lexer.token, {
         kind: Kind.REQUIRED_DESIGNATOR,
       });
     }
   }
 
-  parseOptionalModifierNode(): OptionalModifierNode | undefined {
+  parseOptionalModifierNode(): OptionalDesignatorNode | undefined {
     if (this.expectOptionalToken(TokenKind.QUESTION_MARK)) {
-      return this.node<OptionalModifierNode>(this._lexer.token, {
+      return this.node<OptionalDesignatorNode>(this._lexer.token, {
         kind: Kind.OPTIONAL_DESIGNATOR,
       });
     }
