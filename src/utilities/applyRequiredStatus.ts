@@ -4,6 +4,7 @@ import type {
   ListNullabilityNode,
   NullabilityDesignatorNode,
 } from '../language/ast';
+import { Kind } from '../language/kinds';
 import type { ASTReducer } from '../language/visitor';
 import { visit } from '../language/visitor';
 
@@ -27,8 +28,19 @@ export function applyRequiredStatus(
   type: GraphQLOutputType,
   nullabilityNode?: ListNullabilityNode | NullabilityDesignatorNode,
 ): GraphQLOutputType {
+  // If the field is marked with a single nullability designator
+  //  short-circuit
+  if (nullabilityNode?.element === undefined) {
+    if (nullabilityNode?.kind === Kind.REQUIRED_DESIGNATOR) {
+      return new GraphQLNonNull(getNullableType(type));
+    } else if (nullabilityNode?.kind === Kind.OPTIONAL_DESIGNATOR) {
+      return getNullableType(type);
+    }
+  }
+
   const typeStack: [GraphQLOutputType] = [type];
 
+  // Load the nullable version each type in the type definition to typeStack
   while (isListType(getNullableType(typeStack[typeStack.length - 1]))) {
     const list = assertListType(
       getNullableType(typeStack[typeStack.length - 1]),
@@ -37,6 +49,7 @@ export function applyRequiredStatus(
     typeStack.push(elementType);
   }
 
+  // Re-apply nullability to each level of the list from the outside in
   const applyStatusReducer: ASTReducer<GraphQLOutputType> = {
     RequiredDesignator: {
       leave({ element }) {
@@ -95,7 +108,7 @@ export function applyRequiredStatus(
 
   if (nullabilityNode) {
     const modified = visit(nullabilityNode, applyStatusReducer);
-    // modifiers must be exactly the same depth as the field type
+    // List nullability syntax must be exactly the same depth as the field type
     if (typeStack.length > 0) {
       throw new GraphQLError(
         'List nullability modifier is too shallow.',
