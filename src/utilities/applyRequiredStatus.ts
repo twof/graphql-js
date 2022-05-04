@@ -28,14 +28,8 @@ export function applyRequiredStatus(
   type: GraphQLOutputType,
   nullabilityNode?: ListNullabilityNode | NullabilityDesignatorNode,
 ): GraphQLOutputType {
-  // If the field is marked with a single nullability designator
-  //  short-circuit
-  if (nullabilityNode?.element === undefined) {
-    if (nullabilityNode?.kind === Kind.REQUIRED_DESIGNATOR) {
-      return new GraphQLNonNull(getNullableType(type));
-    } else if (nullabilityNode?.kind === Kind.OPTIONAL_DESIGNATOR) {
-      return getNullableType(type);
-    }
+  if (nullabilityNode == null) {
+    return type;
   }
 
   const typeStack: [GraphQLOutputType] = [type];
@@ -106,17 +100,14 @@ export function applyRequiredStatus(
     },
   };
 
-  if (nullabilityNode) {
-    const modified = visit(nullabilityNode, applyStatusReducer);
-    // List nullability syntax must be exactly the same depth as the field type
-    if (typeStack.length > 0) {
-      throw new GraphQLError(
-        'List nullability modifier is too shallow.',
-        nullabilityNode,
-      );
-    }
-    return modified;
-  }
 
-  return type;
+  const modified = visit(nullabilityNode, applyStatusReducer);
+  // modifiers must be exactly the same depth as the field type
+  if (typeStack.length > 0) {
+    throw new GraphQLError(
+      'List nullability modifier is too shallow.',
+      nullabilityNode,
+    );
+  }
+  return modified;
 }
