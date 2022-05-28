@@ -1587,36 +1587,6 @@ describe('Execute: Handles basic execution tasks', () => {
       });
     });
 
-    it('lists with incorrect depth fail to execute', () => {
-      const document = `
-      query {
-        lists {
-          list[[!]]
-        }
-      }
-    `;
-
-      const listsQuery = parse(document, {
-        experimentalClientControlledNullability: true,
-      });
-      const listsQueryResult = executeSync({
-        schema,
-        document: listsQuery,
-      });
-
-      expectJSON(listsQueryResult).toDeepEqual({
-        data: { lists: null },
-        errors: [
-          {
-            locations: [{ column: 11, line: 4 }],
-            message:
-              'Syntax Error: Something is wrong with the nullability designator. Is the correct list depth being used?',
-            path: ['lists', 'list'],
-          },
-        ],
-      });
-    });
-
     it('lists with required element propagates null to top level list', () => {
       const document = `
       query {

@@ -22,6 +22,8 @@ import type {
   FieldNode,
   FragmentDefinitionNode,
   OperationDefinitionNode,
+  ListNullabilityNode,
+  NullabilityDesignatorNode,
 } from '../language/ast';
 import { OperationTypeNode } from '../language/ast';
 import { Kind } from '../language/kinds';
@@ -33,7 +35,6 @@ import type {
   GraphQLLeafType,
   GraphQLList,
   GraphQLObjectType,
-  GraphQLOutputType,
   GraphQLResolveInfo,
   GraphQLTypeResolver,
 } from '../type/definition';
@@ -43,6 +44,9 @@ import {
   isListType,
   isNonNullType,
   isObjectType,
+  getNullableType,
+  GraphQLNonNull,
+  GraphQLOutputType,
 } from '../type/definition';
 import {
   SchemaMetaFieldDef,
@@ -544,25 +548,7 @@ function executeField(
     return;
   }
 
-  let returnType: GraphQLOutputType;
-  try {
-    returnType = applyRequiredStatus(fieldDef.type, requiredStatus);
-  } catch (error) {
-    const location = fieldNodes[0]?.loc;
-    let starts: ReadonlyArray<number> | undefined = [];
-
-    /* istanbul ignore next (branch where location is undefined is difficult to test) */
-    if (location !== undefined) {
-      starts = [location.start];
-    }
-    throw new GraphQLError(
-      'Syntax Error: Something is wrong with the nullability designator. Is the correct list depth being used?',
-      undefined,
-      fieldNodes[0].loc?.source,
-      starts,
-      pathToArray(path),
-    );
-  }
+  let returnType = simpleTypeTransfer(fieldDef.type, requiredStatus);
 
   const resolveFn = fieldDef.resolve ?? exeContext.fieldResolver;
 
@@ -835,6 +821,19 @@ function completeValue(
   );
 }
 
+function simpleTypeTransfer(
+  type: GraphQLOutputType,
+  nullabilityNode?: ListNullabilityNode | NullabilityDesignatorNode
+): GraphQLOutputType {
+  if (nullabilityNode?.kind === Kind.REQUIRED_DESIGNATOR) {
+    return new GraphQLNonNull(getNullableType(type));
+  } else if (nullabilityNode?.kind === Kind.OPTIONAL_DESIGNATOR) {
+    return getNullableType(type);
+  }
+
+  return type;
+}
+
 /**
  * Complete a list value by completing each item in the list with the
  * inner type
@@ -849,15 +848,37 @@ function completeListValue(
   nullPropagationPairs: Map<String, Path>,
   result: unknown,
 ): PromiseOrValue<ReadonlyArray<unknown>> {
+  const currentNode = fieldNodes[0];
   if (!isIterableObject(result)) {
     throw new GraphQLError(
       `Expected Iterable, but did not find one for field "${info.parentType.name}.${info.fieldName}".`,
     );
   }
 
+  let requiredStatus;
+  if (currentNode.required?.kind === Kind.LIST_NULLABILITY) {
+    requiredStatus = currentNode.required?.element;
+  } else if (currentNode.required?.element?.kind === Kind.LIST_NULLABILITY) {
+    requiredStatus = currentNode.required.element.element;
+  }
+    
+  const newFieldNode: FieldNode = {
+    kind: currentNode.kind,
+    loc: currentNode.loc,
+    alias: currentNode.alias,
+    name: currentNode.name,
+    arguments: currentNode.arguments,
+    required: requiredStatus,
+    directives: currentNode.directives,
+    selectionSet: currentNode.selectionSet
+  };
+
+  const newFieldNodes = [newFieldNode].concat(fieldNodes.slice(1));
+
+  const itemType = simpleTypeTransfer(returnType.ofType, requiredStatus);
+
   // This is specified as a simple map, however we're optimizing the path
   // where the list contains no Promises by avoiding creating another Promise.
-  const itemType = returnType.ofType;
   let containsPromise = false;
   const completedResults = Array.from(result, (item, index) => {
     // No need to modify the info object containing the path,
@@ -870,7 +891,7 @@ function completeListValue(
           completeValue(
             exeContext,
             itemType,
-            fieldNodes,
+            newFieldNodes,
             info,
             itemPath,
             currentPropagationPath,
@@ -882,7 +903,7 @@ function completeListValue(
         completedItem = completeValue(
           exeContext,
           itemType,
-          fieldNodes,
+          newFieldNodes,
           info,
           itemPath,
           currentPropagationPath,
@@ -898,7 +919,7 @@ function completeListValue(
         return completedItem.then(undefined, (rawError) => {
           const error = locatedError(
             rawError,
-            fieldNodes,
+            newFieldNodes,
             pathToArray(itemPath),
           );
           return handleFieldError(
@@ -912,7 +933,7 @@ function completeListValue(
       }
       return completedItem;
     } catch (rawError) {
-      const error = locatedError(rawError, fieldNodes, pathToArray(itemPath));
+      const error = locatedError(rawError, newFieldNodes, pathToArray(itemPath));
       return handleFieldError(
         error,
         itemType,
