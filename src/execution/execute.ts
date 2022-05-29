@@ -21,9 +21,9 @@ import type {
   DocumentNode,
   FieldNode,
   FragmentDefinitionNode,
-  OperationDefinitionNode,
   ListNullabilityNode,
   NullabilityDesignatorNode,
+  OperationDefinitionNode,
 } from '../language/ast';
 import { OperationTypeNode } from '../language/ast';
 import { Kind } from '../language/kinds';
@@ -35,18 +35,18 @@ import type {
   GraphQLLeafType,
   GraphQLList,
   GraphQLObjectType,
+  GraphQLOutputType,
   GraphQLResolveInfo,
   GraphQLTypeResolver,
 } from '../type/definition';
 import {
+  getNullableType,
+  GraphQLNonNull,
   isAbstractType,
   isLeafType,
   isListType,
   isNonNullType,
   isObjectType,
-  getNullableType,
-  GraphQLNonNull,
-  GraphQLOutputType,
 } from '../type/definition';
 import {
   SchemaMetaFieldDef,
@@ -381,7 +381,7 @@ function executeOperation(
   // This is a fake path. It can't exist, so if there is null propagation, then it will go all
   // the way to data.
   const currentPropagationPath = addPath(undefined, '', undefined);
-  let nullPropagationPairs = new Map<String, Path>();
+  const nullPropagationPairs = new Map<String, Path>();
 
   switch (operation.operation) {
     case OperationTypeNode.QUERY:
@@ -546,7 +546,7 @@ function executeField(
     return;
   }
 
-  let returnType = simpleTypeTransfer(fieldDef.type, requiredStatus);
+  const returnType = simpleTypeTransfer(fieldDef.type, requiredStatus);
 
   const resolveFn = fieldDef.resolve ?? exeContext.fieldResolver;
 
@@ -821,7 +821,7 @@ function completeValue(
 
 function simpleTypeTransfer(
   type: GraphQLOutputType,
-  nullabilityNode?: ListNullabilityNode | NullabilityDesignatorNode
+  nullabilityNode?: ListNullabilityNode | NullabilityDesignatorNode,
 ): GraphQLOutputType {
   if (nullabilityNode?.kind === Kind.REQUIRED_DESIGNATOR) {
     return new GraphQLNonNull(getNullableType(type));
@@ -859,7 +859,7 @@ function completeListValue(
   } else if (currentNode.required?.element?.kind === Kind.LIST_NULLABILITY) {
     requiredStatus = currentNode.required.element.element;
   }
-    
+
   const newFieldNode: FieldNode = {
     kind: currentNode.kind,
     loc: currentNode.loc,
@@ -868,7 +868,7 @@ function completeListValue(
     arguments: currentNode.arguments,
     required: requiredStatus,
     directives: currentNode.directives,
-    selectionSet: currentNode.selectionSet
+    selectionSet: currentNode.selectionSet,
   };
 
   const newFieldNodes = [newFieldNode].concat(fieldNodes.slice(1));
@@ -931,7 +931,11 @@ function completeListValue(
       }
       return completedItem;
     } catch (rawError) {
-      const error = locatedError(rawError, newFieldNodes, pathToArray(itemPath));
+      const error = locatedError(
+        rawError,
+        newFieldNodes,
+        pathToArray(itemPath),
+      );
       return handleFieldError(
         error,
         itemType,

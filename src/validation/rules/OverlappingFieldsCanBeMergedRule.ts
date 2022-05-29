@@ -607,9 +607,9 @@ function findConflict(
       return [
         [
           responseName,
-          `they return conflicting types "${inspect(
-            type1,
-          )}" and "${inspect(type2)}"`,
+          `they return conflicting types "${inspect(type1)}" and "${inspect(
+            type2,
+          )}"`,
         ],
         [node1],
         [node2],
@@ -621,9 +621,11 @@ function findConflict(
       return [
         [
           responseName,
-          `they have conflicting CCN operators "${inspect(
-            type1,
-          )}" and "${inspect(type2)}"`,
+          `they have conflicting nullability designators "${
+            node1.required === undefined ? '' : print(node1.required)
+          }" and "${
+            node2.required === undefined ? '' : print(node2.required)
+          }"`,
         ],
         [node1],
         [node2],
