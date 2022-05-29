@@ -56,8 +56,6 @@ import {
 import type { GraphQLSchema } from '../type/schema';
 import { assertValidSchema } from '../type/validate';
 
-import { applyRequiredStatus } from '../utilities/applyRequiredStatus';
-
 import {
   collectFields,
   collectSubfields as _collectSubfields,

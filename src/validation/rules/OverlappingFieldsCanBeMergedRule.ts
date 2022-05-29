@@ -28,7 +28,6 @@ import {
   isObjectType,
 } from '../../type/definition';
 
-import { applyRequiredStatus } from '../../utilities/applyRequiredStatus';
 import { sortValueNode } from '../../utilities/sortValueNode';
 import { typeFromAST } from '../../utilities/typeFromAST';
 
@@ -603,16 +602,28 @@ function findConflict(
   const type2 = def2?.type;
 
   if (type1 && type2) {
-    const modifiedType1 = applyRequiredStatus(type1, node1.required);
-    const modifiedType2 = applyRequiredStatus(type2, node2.required);
-
-    if (doTypesConflict(modifiedType1, modifiedType2)) {
+    // Two fields have different types
+    if (doTypesConflict(type1, type2)) {
       return [
         [
           responseName,
           `they return conflicting types "${inspect(
-            modifiedType1,
-          )}" and "${inspect(modifiedType2)}"`,
+            type1,
+          )}" and "${inspect(type2)}"`,
+        ],
+        [node1],
+        [node2],
+      ];
+    }
+
+    // Two fields have different required operators
+    if (node1.required !== node2.required) {
+      return [
+        [
+          responseName,
+          `they have conflicting CCN operators "${inspect(
+            type1,
+          )}" and "${inspect(type2)}"`,
         ],
         [node1],
         [node2],
